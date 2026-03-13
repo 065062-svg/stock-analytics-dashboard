@@ -3,45 +3,30 @@ import pandas as pd
 import yfinance as yf
 import time
 import plotly.express as px
+from prophet import Prophet
 
-st.set_page_config(page_title="Stock Analytics Dashboard", layout="wide")
-
-st.title("📈 Stock Analytics & Forecast Platform")
-
-
-# ---------- DATA FUNCTIONS ----------
 
 @st.cache_data
-def get_fundamentals(ticker):
+def load_stock_data(ticker):
 
-    for i in range(3):   # retry 3 times
+    for i in range(3):
 
         try:
-            stock = yf.Ticker(ticker)
+            data = yf.download(
+                ticker,
+                start="2018-01-01",
+                progress=False,
+                threads=False
+            )
 
-            fast = stock.fast_info
-            info = stock.info
-            hist = stock.history(period="1y")
-
-            if hist.empty:
-                continue
-
-            market_cap = fast.get("market_cap") or info.get("marketCap")
-            pe = info.get("trailingPE")
-            dividend = info.get("dividendYield")
-            beta = info.get("beta")
-
-            return {
-                "Market Cap": market_cap if market_cap else "N/A",
-                "PE Ratio": pe if pe else "N/A",
-                "Dividend Yield": dividend if dividend else "N/A",
-                "Beta": beta if beta else "N/A",
-                "52W High": hist["High"].max(),
-                "52W Low": hist["Low"].min()
-            }
+            if not data.empty:
+                data.columns = data.columns.get_level_values(0)
+                return data
 
         except:
-            time.sleep(1)
+            pass
+
+        time.sleep(1)
 
     return None
 
@@ -356,6 +341,7 @@ if st.button("Generate Portfolio"):
         st.dataframe(selected)
 
         st.write("Suggested investment per stock:",round(allocation,2))
+
 
 
 
