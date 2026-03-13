@@ -47,20 +47,10 @@ def get_fundamentals(ticker):
     except:
         return None
 
-    return {
-        "Market Cap": info.get("marketCap"),
-        "PE Ratio": info.get("trailingPE"),
-        "Dividend Yield": info.get("dividendYield"),
-        "Beta": info.get("beta"),
-        "52W High": info.get("fiftyTwoWeekHigh"),
-        "52W Low": info.get("fiftyTwoWeekLow")
-    }
 
-
-# ---------- BSE100 STOCK LIST ----------
+# ---------- BSE STOCK LIST ----------
 
 bse100 = [
-
 "RELIANCE.NS","TCS.NS","INFY.NS","HDFCBANK.NS","ICICIBANK.NS",
 "LT.NS","ITC.NS","SBIN.NS","KOTAKBANK.NS","AXISBANK.NS",
 "HINDUNILVR.NS","BHARTIARTL.NS","ASIANPAINT.NS","BAJFINANCE.NS",
@@ -68,7 +58,6 @@ bse100 = [
 "WIPRO.NS","HCLTECH.NS","POWERGRID.NS","NTPC.NS",
 "ONGC.NS","COALINDIA.NS","ADANIENT.NS","ADANIPORTS.NS",
 "JSWSTEEL.NS","TATASTEEL.NS","GRASIM.NS","BAJAJFINSV.NS",
-
 "NESTLEIND.NS","HDFCLIFE.NS","SBILIFE.NS","BRITANNIA.NS",
 "EICHERMOT.NS","TATAMOTORS.NS","HEROMOTOCO.NS",
 "BAJAJ-AUTO.NS","DIVISLAB.NS","DRREDDY.NS",
@@ -77,7 +66,6 @@ bse100 = [
 "ADANITRANS.NS","TATACONSUM.NS","DABUR.NS","COLPAL.NS",
 "PIDILITIND.NS","AMBUJACEM.NS","ACC.NS","HAL.NS",
 "IRCTC.NS","ZOMATO.NS","NYKAA.NS","DMART.NS"
-
 ]
 
 stocks = {s.replace(".NS",""): s for s in bse100}
@@ -156,6 +144,33 @@ fig_rsi = px.line(data, x=data.index, y="RSI", template="plotly_dark")
 st.plotly_chart(fig_rsi, use_container_width=True)
 
 
+# ---------- AI STOCK FORECAST ----------
+
+st.markdown("---")
+st.subheader("📊 AI Stock Price Forecast")
+
+forecast_years = st.slider("Forecast Years",1,5,2)
+
+df_prophet = data.reset_index()[["Date","Close"]]
+df_prophet.columns = ["ds","y"]
+
+model = Prophet()
+model.fit(df_prophet)
+
+future = model.make_future_dataframe(periods=365*forecast_years)
+
+forecast = model.predict(future)
+
+fig_forecast = px.line(
+    forecast,
+    x="ds",
+    y="yhat",
+    title="Predicted Stock Price"
+)
+
+st.plotly_chart(fig_forecast,use_container_width=True)
+
+
 # ---------- MULTI STOCK COMPARISON ----------
 
 st.markdown("---")
@@ -181,9 +196,6 @@ if compare_stocks:
         fig_compare = px.line(compare_df, template="plotly_dark")
         st.plotly_chart(fig_compare,use_container_width=True)
 
-    else:
-        st.warning("Could not fetch comparison data.")
-
 
 # ---------- FUNDAMENTAL COMPARISON ----------
 
@@ -192,8 +204,7 @@ st.subheader("📊 Stock Fundamentals Comparison")
 
 compare_table = st.multiselect(
     "Select stocks for fundamentals comparison",
-    list(stocks.keys()),
-    key="fund_compare"
+    list(stocks.keys())
 )
 
 if compare_table:
@@ -216,7 +227,7 @@ if compare_table:
     df_fund = pd.DataFrame(fundamentals)
 
     if df_fund.empty:
-        st.warning("Fundamental data could not be fetched. Try selecting different stocks.")
+        st.warning("Fundamental data could not be fetched.")
 
     else:
 
@@ -225,20 +236,10 @@ if compare_table:
         df_score = df_fund.copy()
 
         df_score["PE Ratio"] = df_score["PE Ratio"].fillna(100)
-        df_score["Dividend Yield"] = df_score["Dividend Yield"].fillna(0)
-        df_score["Beta"] = df_score["Beta"].fillna(1)
 
         df_score["pe_score"] = 1 / df_score["PE Ratio"]
-        df_score["div_score"] = df_score["Dividend Yield"]
-        df_score["risk_score"] = 1 / df_score["Beta"]
 
-        df_score["total_score"] = (
-            0.4 * df_score["pe_score"] +
-            0.3 * df_score["div_score"] +
-            0.3 * df_score["risk_score"]
-        )
-
-        best_stock = df_score.sort_values("total_score",ascending=False).iloc[0]["Stock"]
+        best_stock = df_score.sort_values("pe_score",ascending=False).iloc[0]["Stock"]
 
         st.success(f"⭐ Suggested Stock Among Selected: **{best_stock}**")
 
@@ -253,8 +254,6 @@ investment_amount = st.number_input("Total Investment Amount (₹)",1000,1000000
 risk_level = st.selectbox("Risk Appetite",["Low Risk","Moderate Risk","High Risk"])
 
 years = st.slider("Investment Horizon (Years)",1,10,5)
-
-st.write("Suggested diversified portfolio based on volatility")
 
 if st.button("Generate Portfolio"):
 
@@ -298,6 +297,22 @@ if st.button("Generate Portfolio"):
         st.dataframe(selected)
 
         st.write("Suggested investment per stock:",round(allocation,2))
+
+
+# ---------- PORTFOLIO FUTURE VALUE ----------
+
+st.markdown("---")
+st.subheader("📈 Portfolio Future Value Simulation")
+
+expected_return = st.slider("Expected Annual Return (%)",5,20,12)/100
+
+future_value = investment_amount * (1+expected_return)**years
+
+st.metric(
+    "Estimated Portfolio Value",
+    f"₹{round(future_value,2)}"
+)
+
 
 
 
