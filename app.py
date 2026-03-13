@@ -3,6 +3,7 @@ import pandas as pd
 import yfinance as yf
 import plotly.express as px
 from prophet import Prophet
+
 @st.cache_data
 def load_stock_data(ticker):
     data = yf.download(ticker, start="2018-01-01")
@@ -30,151 +31,8 @@ def get_fundamentals(ticker):
         "52W Low": info.get("fiftyTwoWeekLow")
     }
 
+
 st.set_page_config(page_title="Stock Analytics Dashboard", layout="wide")
-
-# ---------- Custom Styling ----------
-st.markdown("""
-<style>
-
-.stApp {
-    background: linear-gradient(135deg,#0f2027,#203a43,#2c5364);
-}
-
-h1, h2, h3, h4 {
-    color: #00ffd5 !important;
-}
-
-.stMarkdown, .stText, .stMetric {
-    color: yellow !important;
-}
-
-/* Metric cards */
-[data-testid="metric-container"] {
-    background-color: #132b38;
-    border: 1px solid #00ffd5;
-    padding: 15px;
-    border-radius: 10px;
-}
-
-/* Sidebar */
-section[data-testid="stSidebar"] {
-    background-color: #111;
-}
-
-section[data-testid="stSidebar"] * {
-    color: #00ff88 !important;
-}
-
-/* Buttons */
-button {
-    color: #00ff88 !important;
-    font-weight: bold !important;
-}
-
-/* Dropdown styling */
-[data-baseweb="select"] > div {
-    background-color: #132b38 !important;
-}
-
-[data-baseweb="select"] span {
-    color: #00ff88 !important;
-}
-
-div[role="listbox"] {
-    background-color: #132b38 !important;
-}
-
-div[role="listbox"] span {
-    color: #00ff88 !important;
-}
-
-span[data-baseweb="tag"] {
-    background-color: #132b38 !important;
-    color: #00ff88 !important;
-}
-/* Force dropdown options to green */
-div[role="option"] span {
-    color: #00ff88 !important;
-}
-
-/* Multiselect dropdown list */
-div[data-baseweb="menu"] span {
-    color: #00ff88 !important;
-}
-
-/* Dropdown hover highlight */
-div[role="option"]:hover {
-    background-color: #132b38 !important;
-}
-
-/* Select all option */
-div[role="option"] {
-    color: #00ff88 !important;
-}
-/* Dropdown text color */
-[data-baseweb="select"] span {
-    color: #00ff88 !important;
-}
-
-/* Dropdown menu */
-div[role="listbox"] {
-    background-color: #132b38 !important;
-}
-
-/* Dropdown options */
-div[role="option"] span {
-    color: #00ff88 !important;
-}
-
-/* Selected tags in multiselect */
-span[data-baseweb="tag"] {
-    background-color: #132b38 !important;
-    color: #00ff88 !important;
-}
-/* Metric title text */
-[data-testid="stMetricLabel"] {
-    color: #00ffd5 !important;
-    font-weight: bold;
-}
-
-/* Metric value text */
-[data-testid="stMetricValue"] {
-    color: #ffffff !important;
-    font-size: 28px !important;
-}
-
-/* Metric delta text (if used later) */
-[data-testid="stMetricDelta"] {
-    color: #00ff88 !important;
-}
-/* Input box text */
-input {
-    color: #ffffff !important;
-    background-color: #132b38 !important;
-}
-
-/* Selectbox text */
-[data-baseweb="select"] {
-    color: #ffffff !important;
-}
-
-/* Selectbox value */
-[data-baseweb="select"] span {
-    color: #00ff88 !important;
-}
-
-/* Number input */
-.stNumberInput input {
-    color: #ffffff !important;
-    background-color: #132b38 !important;
-}
-
-/* Slider labels */
-.stSlider label {
-    color: #ffffff !important;
-}
-</style>
-""", unsafe_allow_html=True)
 
 st.title("📈 Stock Analytics & Forecast Platform")
 
@@ -190,30 +48,6 @@ bse100 = [
 ]
 
 stocks = {s.replace(".NS",""): s for s in bse100}
-
-# ---------- CAGR Functions ----------
-def historical_cagr(data, years):
-    start_price = data["Close"].iloc[0]
-    end_price = data["Close"].iloc[-1]
-    return (end_price/start_price)**(1/years) - 1
-
-
-def forecast_cagr(data, years):
-
-    df = data.reset_index()[["Date","Close"]]
-    df.columns = ["ds","y"]
-
-    model = Prophet()
-    model.fit(df)
-
-    future = model.make_future_dataframe(periods=365*years)
-    forecast = model.predict(future)
-
-    future_price = forecast["yhat"].iloc[-1]
-    current_price = data["Close"].iloc[-1]
-
-    return (future_price/current_price)**(1/years) - 1
-
 
 # ---------- Sidebar ----------
 st.sidebar.markdown("## 📊 Dashboard Controls")
@@ -231,14 +65,11 @@ compare_stocks = st.sidebar.multiselect(
 ticker = stocks[selected_stock]
 
 # ---------- Download Data ----------
-data = yf.download(ticker, start="2018-01-01")
+data = load_stock_data(ticker)
 
-if data.empty:
-    st.error("Failed to fetch stock data. Please try another stock.")
+if data is None:
+    st.error("Failed to fetch stock data.")
     st.stop()
-
-data.columns = data.columns.get_level_values(0)
-data.columns = data.columns.get_level_values(0)
 
 # ---------- Metrics ----------
 st.markdown("---")
@@ -252,15 +83,6 @@ col3.metric("52 Week Low", round(data["Low"].min(),2))
 st.subheader(f"📈 {selected_stock} Price Trend")
 
 fig = px.line(data, x=data.index, y="Close", template="plotly_dark")
-
-fig.update_layout(
-    plot_bgcolor="#0b1f2a",
-    paper_bgcolor="#0b1f2a",
-    font=dict(color="white", size=15),
-    xaxis=dict(showgrid=True, gridcolor="#2c5364"),
-    yaxis=dict(showgrid=True, gridcolor="#2c5364")
-)
-
 st.plotly_chart(fig, use_container_width=True)
 
 # ---------- Moving Averages ----------
@@ -270,15 +92,6 @@ data["MA50"] = data["Close"].rolling(50).mean()
 data["MA200"] = data["Close"].rolling(200).mean()
 
 fig_ma = px.line(data, x=data.index, y=["Close","MA50","MA200"], template="plotly_dark")
-
-fig_ma.update_layout(
-    plot_bgcolor="#0b1f2a",
-    paper_bgcolor="#0b1f2a",
-    font=dict(color="white"),
-    xaxis=dict(gridcolor="#2c5364"),
-    yaxis=dict(gridcolor="#2c5364")
-)
-
 st.plotly_chart(fig_ma, use_container_width=True)
 
 # ---------- RSI ----------
@@ -295,15 +108,6 @@ rs = avg_gain/avg_loss
 data["RSI"] = 100-(100/(1+rs))
 
 fig_rsi = px.line(data, x=data.index, y="RSI", template="plotly_dark")
-
-fig_rsi.update_layout(
-    plot_bgcolor="#0b1f2a",
-    paper_bgcolor="#0b1f2a",
-    font=dict(color="white"),
-    xaxis=dict(gridcolor="#2c5364"),
-    yaxis=dict(gridcolor="#2c5364")
-)
-
 st.plotly_chart(fig_rsi, use_container_width=True)
 
 # ---------- MULTI STOCK COMPARISON ----------
@@ -317,25 +121,15 @@ if compare_stocks:
     for stock in compare_stocks:
 
         ticker = stocks[stock]
+        df = load_stock_data(ticker)
 
-        df = yf.download(ticker,start="2018-01-01")
-        df.columns = df.columns.get_level_values(0)
+        if df is None:
+            continue
 
         normalized = df["Close"] / df["Close"].iloc[0] * 100
-
         compare_df[stock] = normalized
 
     fig_compare = px.line(compare_df, template="plotly_dark")
-
-    fig_compare.update_layout(
-        plot_bgcolor="#0b1f2a",
-        paper_bgcolor="#0b1f2a",
-        font=dict(color="white"),
-        xaxis=dict(gridcolor="#2c5364"),
-        yaxis=dict(gridcolor="#2c5364"),
-        yaxis_title="Relative Performance (Base = 100)"
-    )
-
     st.plotly_chart(fig_compare,use_container_width=True)
 
 # ---------- FUNDAMENTAL COMPARISON ----------
@@ -355,25 +149,22 @@ if compare_table:
     for stock in compare_table:
 
         ticker = stocks[stock]
-       info = get_fundamentals(ticker)
 
-if info is None:
-    continue
+        info = get_fundamentals(ticker)
+
+        if info is None:
+            continue
 
         fundamentals.append({
             "Stock": stock,
-            "Market Cap": info.get("marketCap"),
-            "PE Ratio": info.get("trailingPE"),
-            "Dividend Yield": info.get("dividendYield"),
-            "Beta": info.get("beta"),
-            "52W High": info.get("fiftyTwoWeekHigh"),
-            "52W Low": info.get("fiftyTwoWeekLow")
+            **info
         })
 
     df_fund = pd.DataFrame(fundamentals)
 
     st.dataframe(df_fund)
 
+    # ---------- Recommendation ----------
     df_score = df_fund.copy()
 
     df_score["PE Ratio"] = df_score["PE Ratio"].fillna(100)
@@ -400,11 +191,11 @@ st.subheader("🤖 Smart Portfolio Builder")
 
 investment_amount = st.number_input("Total Investment Amount (₹)",1000,10000000,100000)
 
-target_return = st.slider("Expected Annual Return (%)",5,25,12,key="robo_return")
-
 risk_level = st.selectbox("Risk Appetite",["Low Risk","Moderate Risk","High Risk"])
 
-years = st.slider("Investment Horizon (Years)",1,10,5,key="robo_years")
+years = st.slider("Investment Horizon (Years)",1,10,5)
+
+st.write("Suggested diversified portfolio based on volatility")
 
 if st.button("Generate Portfolio"):
 
@@ -414,18 +205,15 @@ if st.button("Generate Portfolio"):
 
         try:
 
-            df=yf.download(stock,start="2018-01-01")
-            df.columns=df.columns.get_level_values(0)
+            df=load_stock_data(stock)
 
-            hist=historical_cagr(df,5)
-            future=forecast_cagr(df,years)
+            if df is None:
+                continue
 
-            score=(hist+future)/2
             vol=df["Close"].pct_change().std()
 
             portfolio.append({
             "Stock":stock,
-            "Score":score,
             "Volatility":vol
             })
 
@@ -440,18 +228,19 @@ if st.button("Generate Portfolio"):
     elif risk_level=="Moderate Risk":
         df_port=df_port[df_port["Volatility"]<0.035]
 
-    df_port=df_port.sort_values("Score",ascending=False)
+    df_port=df_port.sort_values("Volatility")
 
     selected=df_port.head(5)
 
-    if len(selected)>0:
+    allocation=investment_amount/len(selected)
 
-        allocation=investment_amount/len(selected)
-        selected["Investment Allocation"]=allocation
+    selected["Investment Allocation"]=allocation
 
-        st.dataframe(selected)
+    st.dataframe(selected)
 
+    st.write("Suggested investment per stock:",round(allocation,2))
 
         st.write("Suggested investment per stock:",round(allocation,2))
+
 
 
