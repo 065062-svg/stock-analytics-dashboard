@@ -1,8 +1,16 @@
 import streamlit as st
 import pandas as pd
 import yfinance as yf
+import time
 import plotly.express as px
 from prophet import Prophet
+
+st.set_page_config(page_title="Stock Analytics Dashboard", layout="wide")
+
+st.title("📈 Stock Analytics & Forecast Platform")
+
+
+# ---------- DATA FUNCTIONS ----------
 
 @st.cache_data
 def load_stock_data(ticker):
@@ -17,9 +25,16 @@ def load_stock_data(ticker):
 
 @st.cache_data
 def get_fundamentals(ticker):
+
     try:
-        info = yf.Ticker(ticker).info
+        stock = yf.Ticker(ticker)
+        info = stock.info
+        time.sleep(1)
+
     except:
+        return None
+
+    if not info:
         return None
 
     return {
@@ -32,11 +47,8 @@ def get_fundamentals(ticker):
     }
 
 
-st.set_page_config(page_title="Stock Analytics Dashboard", layout="wide")
+# ---------- BSE100 STOCK LIST ----------
 
-st.title("📈 Stock Analytics & Forecast Platform")
-
-# ---------- BSE100 Stock List ----------
 bse100 = [
 "RELIANCE.NS","TCS.NS","INFY.NS","HDFCBANK.NS","ICICIBANK.NS",
 "LT.NS","ITC.NS","SBIN.NS","KOTAKBANK.NS","AXISBANK.NS",
@@ -49,7 +61,9 @@ bse100 = [
 
 stocks = {s.replace(".NS",""): s for s in bse100}
 
-# ---------- Sidebar ----------
+
+# ---------- SIDEBAR ----------
+
 st.sidebar.markdown("## 📊 Dashboard Controls")
 
 selected_stock = st.sidebar.selectbox(
@@ -64,14 +78,18 @@ compare_stocks = st.sidebar.multiselect(
 
 ticker = stocks[selected_stock]
 
-# ---------- Download Data ----------
+
+# ---------- LOAD DATA ----------
+
 data = load_stock_data(ticker)
 
 if data is None:
     st.error("Failed to fetch stock data.")
     st.stop()
 
-# ---------- Metrics ----------
+
+# ---------- METRICS ----------
+
 st.markdown("---")
 col1,col2,col3 = st.columns(3)
 
@@ -79,13 +97,17 @@ col1.metric("Current Price", round(data["Close"].iloc[-1],2))
 col2.metric("52 Week High", round(data["High"].max(),2))
 col3.metric("52 Week Low", round(data["Low"].min(),2))
 
-# ---------- Price Chart ----------
+
+# ---------- PRICE CHART ----------
+
 st.subheader(f"📈 {selected_stock} Price Trend")
 
 fig = px.line(data, x=data.index, y="Close", template="plotly_dark")
 st.plotly_chart(fig, use_container_width=True)
 
-# ---------- Moving Averages ----------
+
+# ---------- MOVING AVERAGES ----------
+
 st.subheader("📊 Moving Averages")
 
 data["MA50"] = data["Close"].rolling(50).mean()
@@ -94,7 +116,9 @@ data["MA200"] = data["Close"].rolling(200).mean()
 fig_ma = px.line(data, x=data.index, y=["Close","MA50","MA200"], template="plotly_dark")
 st.plotly_chart(fig_ma, use_container_width=True)
 
+
 # ---------- RSI ----------
+
 st.subheader("⚡ RSI Indicator")
 
 delta = data["Close"].diff()
@@ -110,7 +134,9 @@ data["RSI"] = 100-(100/(1+rs))
 fig_rsi = px.line(data, x=data.index, y="RSI", template="plotly_dark")
 st.plotly_chart(fig_rsi, use_container_width=True)
 
+
 # ---------- MULTI STOCK COMPARISON ----------
+
 st.markdown("---")
 st.subheader("📊 Multi-Stock Performance Comparison")
 
@@ -129,10 +155,17 @@ if compare_stocks:
         normalized = df["Close"] / df["Close"].iloc[0] * 100
         compare_df[stock] = normalized
 
-    fig_compare = px.line(compare_df, template="plotly_dark")
-    st.plotly_chart(fig_compare,use_container_width=True)
+    if not compare_df.empty:
+
+        fig_compare = px.line(compare_df, template="plotly_dark")
+        st.plotly_chart(fig_compare,use_container_width=True)
+
+    else:
+        st.warning("Could not fetch comparison data.")
+
 
 # ---------- FUNDAMENTAL COMPARISON ----------
+
 st.markdown("---")
 st.subheader("📊 Stock Fundamentals Comparison")
 
@@ -149,7 +182,6 @@ if compare_table:
     for stock in compare_table:
 
         ticker = stocks[stock]
-
         info = get_fundamentals(ticker)
 
         if info is None:
@@ -160,34 +192,38 @@ if compare_table:
             **info
         })
 
-df_fund = pd.DataFrame(fundamentals)
+    df_fund = pd.DataFrame(fundamentals)
 
-if df_fund.empty:
-    st.warning("Fundamental data could not be fetched. Try selecting different stocks.")
-else:
-    st.dataframe(df_fund)
+    if df_fund.empty:
+        st.warning("Fundamental data could not be fetched. Try selecting different stocks.")
 
-    df_score = df_fund.copy()
+    else:
 
-    df_score["PE Ratio"] = df_score["PE Ratio"].fillna(100)
-    df_score["Dividend Yield"] = df_score["Dividend Yield"].fillna(0)
-    df_score["Beta"] = df_score["Beta"].fillna(1)
+        st.dataframe(df_fund)
 
-    df_score["pe_score"] = 1 / df_score["PE Ratio"]
-    df_score["div_score"] = df_score["Dividend Yield"]
-    df_score["risk_score"] = 1 / df_score["Beta"]
+        df_score = df_fund.copy()
 
-    df_score["total_score"] = (
-        0.4 * df_score["pe_score"] +
-        0.3 * df_score["div_score"] +
-        0.3 * df_score["risk_score"]
-    )
+        df_score["PE Ratio"] = df_score["PE Ratio"].fillna(100)
+        df_score["Dividend Yield"] = df_score["Dividend Yield"].fillna(0)
+        df_score["Beta"] = df_score["Beta"].fillna(1)
 
-    best_stock = df_score.sort_values("total_score",ascending=False).iloc[0]["Stock"]
+        df_score["pe_score"] = 1 / df_score["PE Ratio"]
+        df_score["div_score"] = df_score["Dividend Yield"]
+        df_score["risk_score"] = 1 / df_score["Beta"]
 
-    st.success(f"⭐ Suggested Stock Among Selected: **{best_stock}**")
+        df_score["total_score"] = (
+            0.4 * df_score["pe_score"] +
+            0.3 * df_score["div_score"] +
+            0.3 * df_score["risk_score"]
+        )
 
-# ---------- Robo Portfolio Advisor ----------
+        best_stock = df_score.sort_values("total_score",ascending=False).iloc[0]["Stock"]
+
+        st.success(f"⭐ Suggested Stock Among Selected: **{best_stock}**")
+
+
+# ---------- PORTFOLIO BUILDER ----------
+
 st.markdown("---")
 st.subheader("🤖 Smart Portfolio Builder")
 
@@ -205,22 +241,17 @@ if st.button("Generate Portfolio"):
 
     for stock in bse100:
 
-        try:
+        df = load_stock_data(stock)
 
-            df=load_stock_data(stock)
+        if df is None:
+            continue
 
-            if df is None:
-                continue
+        vol=df["Close"].pct_change().std()
 
-            vol=df["Close"].pct_change().std()
-
-            portfolio.append({
+        portfolio.append({
             "Stock":stock,
             "Volatility":vol
-            })
-
-        except:
-            pass
+        })
 
     df_port=pd.DataFrame(portfolio)
 
@@ -234,13 +265,19 @@ if st.button("Generate Portfolio"):
 
     selected=df_port.head(5)
 
-    allocation=investment_amount/len(selected)
+    if selected.empty:
+        st.warning("No stocks match the selected risk level.")
 
-    selected["Investment Allocation"]=allocation
+    else:
 
-    st.dataframe(selected)
+        allocation=investment_amount/len(selected)
 
-    st.write("Suggested investment per stock:",round(allocation,2))
+        selected["Investment Allocation"]=allocation
+
+        st.dataframe(selected)
+
+        st.write("Suggested investment per stock:",round(allocation,2))
+
 
 
 
