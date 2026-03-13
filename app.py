@@ -5,7 +5,7 @@ import time
 import plotly.express as px
 from prophet import Prophet
 
-
+st.markdown("<h1>📈 Stock Analytics & Forecast Platform</h1>", unsafe_allow_html=True)
 @st.cache_data
 def load_stock_data(ticker):
 
@@ -341,6 +341,7 @@ if st.button("Generate Portfolio"):
         st.dataframe(selected)
 
         st.write("Suggested investment per stock:",round(allocation,2))
+
 
 
 
