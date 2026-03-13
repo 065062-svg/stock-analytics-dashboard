@@ -240,7 +240,6 @@ if st.button("Generate Portfolio"):
 
     st.write("Suggested investment per stock:",round(allocation,2))
 
-        st.write("Suggested investment per stock:",round(allocation,2))
 
 
 
