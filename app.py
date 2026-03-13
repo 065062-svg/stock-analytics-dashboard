@@ -206,6 +206,12 @@ ticker = stocks[selected_stock]
 
 # ---------- Download Data ----------
 data = yf.download(ticker, start="2018-01-01")
+
+if data.empty:
+    st.error("Failed to fetch stock data. Please try another stock.")
+    st.stop()
+
+data.columns = data.columns.get_level_values(0)
 data.columns = data.columns.get_level_values(0)
 
 # ---------- Metrics ----------
@@ -415,5 +421,6 @@ if st.button("Generate Portfolio"):
         selected["Investment Allocation"]=allocation
 
         st.dataframe(selected)
+
 
         st.write("Suggested investment per stock:",round(allocation,2))
