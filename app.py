@@ -3,7 +3,6 @@ import pandas as pd
 import yfinance as yf
 import time
 import plotly.express as px
-from prophet import Prophet
 
 st.set_page_config(page_title="Stock Analytics Dashboard", layout="wide")
 
@@ -151,24 +150,41 @@ st.subheader("📊 AI Stock Price Forecast")
 
 forecast_years = st.slider("Forecast Years",1,5,2)
 
-df_prophet = data.reset_index()[["Date","Close"]]
-df_prophet.columns = ["ds","y"]
+df_forecast = data.reset_index()[["Date","Close"]]
+df_forecast["t"] = range(len(df_forecast))
 
-model = Prophet()
-model.fit(df_prophet)
+# simple linear trend model
+coef = pd.Series(df_forecast["Close"]).corr(pd.Series(df_forecast["t"]))
 
-future = model.make_future_dataframe(periods=365*forecast_years)
+slope = (df_forecast["Close"].iloc[-1] - df_forecast["Close"].iloc[0]) / len(df_forecast)
 
-forecast = model.predict(future)
+future_days = 365 * forecast_years
+
+future_index = range(len(df_forecast), len(df_forecast) + future_days)
+
+future_prices = [
+    df_forecast["Close"].iloc[-1] + slope * i
+    for i in range(1, future_days+1)
+]
+
+future_dates = pd.date_range(
+    start=df_forecast["Date"].iloc[-1],
+    periods=future_days+1
+)[1:]
+
+forecast_df = pd.DataFrame({
+    "Date": future_dates,
+    "Forecast Price": future_prices
+})
 
 fig_forecast = px.line(
-    forecast,
-    x="ds",
-    y="yhat",
-    title="Predicted Stock Price"
+    forecast_df,
+    x="Date",
+    y="Forecast Price",
+    title="Projected Stock Price Trend"
 )
 
-st.plotly_chart(fig_forecast,use_container_width=True)
+st.plotly_chart(fig_forecast, use_container_width=True)
 
 
 # ---------- MULTI STOCK COMPARISON ----------
@@ -312,6 +328,7 @@ st.metric(
     "Estimated Portfolio Value",
     f"₹{round(future_value,2)}"
 )
+
 
 
 
