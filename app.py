@@ -12,27 +12,36 @@ st.title("📈 Stock Analytics & Forecast Platform")
 # ---------- DATA FUNCTIONS ----------
 
 @st.cache_data
-def load_stock_data(ticker):
+def get_fundamentals(ticker):
 
     for i in range(3):   # retry 3 times
 
         try:
-            data = yf.download(
-                ticker,
-                start="2018-01-01",
-                progress=False,
-                threads=False
-            )
+            stock = yf.Ticker(ticker)
 
-            if not data.empty:
+            fast = stock.fast_info
+            info = stock.info
+            hist = stock.history(period="1y")
 
-                data.columns = data.columns.get_level_values(0)
-                return data
+            if hist.empty:
+                continue
+
+            market_cap = fast.get("market_cap") or info.get("marketCap")
+            pe = info.get("trailingPE")
+            dividend = info.get("dividendYield")
+            beta = info.get("beta")
+
+            return {
+                "Market Cap": market_cap if market_cap else "N/A",
+                "PE Ratio": pe if pe else "N/A",
+                "Dividend Yield": dividend if dividend else "N/A",
+                "Beta": beta if beta else "N/A",
+                "52W High": hist["High"].max(),
+                "52W Low": hist["Low"].min()
+            }
 
         except:
-            pass
-
-        time.sleep(1)
+            time.sleep(1)
 
     return None
 
@@ -250,6 +259,8 @@ if compare_table:
 
     for stock in compare_table:
 
+    time.sleep(0.5)
+
         ticker = stocks[stock]
         info = get_fundamentals(ticker)
 
@@ -334,6 +345,7 @@ if st.button("Generate Portfolio"):
         st.dataframe(selected)
 
         st.write("Suggested investment per stock:",round(allocation,2))
+
 
 
 
