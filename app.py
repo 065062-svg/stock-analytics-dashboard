@@ -28,13 +28,23 @@ def get_fundamentals(ticker):
 
     try:
         stock = yf.Ticker(ticker)
-        info = stock.info
-        time.sleep(1)
+
+        fast = stock.fast_info
+        hist = stock.history(period="1y")
+
+        if hist.empty:
+            return None
+
+        return {
+            "Market Cap": fast.get("market_cap"),
+            "PE Ratio": None,
+            "Dividend Yield": None,
+            "Beta": None,
+            "52W High": hist["High"].max(),
+            "52W Low": hist["Low"].min()
+        }
 
     except:
-        return None
-
-    if not info:
         return None
 
     return {
@@ -277,6 +287,7 @@ if st.button("Generate Portfolio"):
         st.dataframe(selected)
 
         st.write("Suggested investment per stock:",round(allocation,2))
+
 
 
 
