@@ -267,7 +267,12 @@ if compare_table:
 
     df_fund = pd.DataFrame(fundamentals)
 
-    st.dataframe(df_fund)
+    if df_fund.empty:
+        st.warning("Fundamental data could not be fetched. Try selecting different stocks.")
+
+    else:
+
+        st.dataframe(df_fund)
 
         df_score = df_fund.copy()
 
@@ -343,6 +348,7 @@ if st.button("Generate Portfolio"):
         st.dataframe(selected)
 
         st.write("Suggested investment per stock:",round(allocation,2))
+
 
 
 
