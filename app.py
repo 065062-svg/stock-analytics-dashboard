@@ -13,13 +13,28 @@ st.title("📈 Stock Analytics & Forecast Platform")
 
 @st.cache_data
 def load_stock_data(ticker):
-    data = yf.download(ticker, start="2018-01-01")
 
-    if data.empty:
-        return None
+    for i in range(3):   # retry 3 times
 
-    data.columns = data.columns.get_level_values(0)
-    return data
+        try:
+            data = yf.download(
+                ticker,
+                start="2018-01-01",
+                progress=False,
+                threads=False
+            )
+
+            if not data.empty:
+
+                data.columns = data.columns.get_level_values(0)
+                return data
+
+        except:
+            pass
+
+        time.sleep(1)
+
+    return None
 
 
 @st.cache_data
@@ -98,7 +113,7 @@ ticker = stocks[selected_stock]
 data = load_stock_data(ticker)
 
 if data is None:
-    st.error("Failed to fetch stock data.")
+    st.warning("⚠️ Data temporarily unavailable. Try refreshing the app.")
     st.stop()
 
 
@@ -319,6 +334,7 @@ if st.button("Generate Portfolio"):
         st.dataframe(selected)
 
         st.write("Suggested investment per stock:",round(allocation,2))
+
 
 
 
