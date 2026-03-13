@@ -3,6 +3,15 @@ import pandas as pd
 import yfinance as yf
 import plotly.express as px
 from prophet import Prophet
+@st.cache_data
+def load_stock_data(ticker):
+    data = yf.download(ticker, start="2018-01-01")
+
+    if data.empty:
+        return None
+
+    data.columns = data.columns.get_level_values(0)
+    return data
 
 st.set_page_config(page_title="Stock Analytics Dashboard", layout="wide")
 
@@ -424,3 +433,4 @@ if st.button("Generate Portfolio"):
 
 
         st.write("Suggested investment per stock:",round(allocation,2))
+
