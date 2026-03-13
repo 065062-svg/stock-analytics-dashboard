@@ -160,11 +160,13 @@ if compare_table:
             **info
         })
 
-    df_fund = pd.DataFrame(fundamentals)
+df_fund = pd.DataFrame(fundamentals)
 
+if df_fund.empty:
+    st.warning("Fundamental data could not be fetched. Try selecting different stocks.")
+else:
     st.dataframe(df_fund)
 
-    # ---------- Recommendation ----------
     df_score = df_fund.copy()
 
     df_score["PE Ratio"] = df_score["PE Ratio"].fillna(100)
@@ -239,6 +241,7 @@ if st.button("Generate Portfolio"):
     st.dataframe(selected)
 
     st.write("Suggested investment per stock:",round(allocation,2))
+
 
 
 
