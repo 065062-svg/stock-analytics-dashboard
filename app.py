@@ -13,6 +13,23 @@ def load_stock_data(ticker):
     data.columns = data.columns.get_level_values(0)
     return data
 
+
+@st.cache_data
+def get_fundamentals(ticker):
+    try:
+        info = yf.Ticker(ticker).info
+    except:
+        return None
+
+    return {
+        "Market Cap": info.get("marketCap"),
+        "PE Ratio": info.get("trailingPE"),
+        "Dividend Yield": info.get("dividendYield"),
+        "Beta": info.get("beta"),
+        "52W High": info.get("fiftyTwoWeekHigh"),
+        "52W Low": info.get("fiftyTwoWeekLow")
+    }
+
 st.set_page_config(page_title="Stock Analytics Dashboard", layout="wide")
 
 # ---------- Custom Styling ----------
@@ -338,7 +355,10 @@ if compare_table:
     for stock in compare_table:
 
         ticker = stocks[stock]
-        info = yf.Ticker(ticker).info
+       info = get_fundamentals(ticker)
+
+if info is None:
+    continue
 
         fundamentals.append({
             "Stock": stock,
@@ -433,4 +453,5 @@ if st.button("Generate Portfolio"):
 
 
         st.write("Suggested investment per stock:",round(allocation,2))
+
 
