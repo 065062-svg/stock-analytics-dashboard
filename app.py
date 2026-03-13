@@ -250,32 +250,33 @@ st.subheader("📊 Stock Fundamentals Comparison")
 
 compare_table = st.multiselect(
     "Select stocks for fundamentals comparison",
-    list(stocks.keys())
+    list(stocks.keys()),
+    key="fund_compare"
 )
 
 if compare_table:
 
-fundamentals = []
+    fundamentals = []
 
-for stock in compare_table:
+    for stock in compare_table:
 
-    time.sleep(0.5)
+        time.sleep(0.5)
 
-    ticker = stocks[stock]
-    info = get_fundamentals(ticker)
+        ticker = stocks[stock]
+        info = get_fundamentals(ticker)
 
-    if info is None:
-        continue
+        if info is None:
+            continue
 
-    fundamentals.append({
-        "Stock": stock,
-        **info
-    })
+        fundamentals.append({
+            "Stock": stock,
+            **info
+        })
 
     df_fund = pd.DataFrame(fundamentals)
 
     if df_fund.empty:
-        st.warning("Fundamental data could not be fetched.")
+        st.warning("Fundamental data could not be fetched. Try selecting different stocks.")
 
     else:
 
@@ -283,11 +284,21 @@ for stock in compare_table:
 
         df_score = df_fund.copy()
 
-        df_score["PE Ratio"] = df_score["PE Ratio"].fillna(100)
+        df_score["PE Ratio"] = df_score["PE Ratio"].replace("N/A",100)
+        df_score["Dividend Yield"] = df_score["Dividend Yield"].replace("N/A",0)
+        df_score["Beta"] = df_score["Beta"].replace("N/A",1)
 
         df_score["pe_score"] = 1 / df_score["PE Ratio"]
+        df_score["div_score"] = df_score["Dividend Yield"]
+        df_score["risk_score"] = 1 / df_score["Beta"]
 
-        best_stock = df_score.sort_values("pe_score",ascending=False).iloc[0]["Stock"]
+        df_score["total_score"] = (
+            0.4 * df_score["pe_score"] +
+            0.3 * df_score["div_score"] +
+            0.3 * df_score["risk_score"]
+        )
+
+        best_stock = df_score.sort_values("total_score",ascending=False).iloc[0]["Stock"]
 
         st.success(f"⭐ Suggested Stock Among Selected: **{best_stock}**")
 
@@ -345,6 +356,7 @@ if st.button("Generate Portfolio"):
         st.dataframe(selected)
 
         st.write("Suggested investment per stock:",round(allocation,2))
+
 
 
 
