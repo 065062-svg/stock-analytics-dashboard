@@ -255,22 +255,22 @@ compare_table = st.multiselect(
 
 if compare_table:
 
-    fundamentals = []
+fundamentals = []
 
-    for stock in compare_table:
+for stock in compare_table:
 
     time.sleep(0.5)
 
-        ticker = stocks[stock]
-        info = get_fundamentals(ticker)
+    ticker = stocks[stock]
+    info = get_fundamentals(ticker)
 
-        if info is None:
-            continue
+    if info is None:
+        continue
 
-        fundamentals.append({
-            "Stock": stock,
-            **info
-        })
+    fundamentals.append({
+        "Stock": stock,
+        **info
+    })
 
     df_fund = pd.DataFrame(fundamentals)
 
@@ -345,6 +345,7 @@ if st.button("Generate Portfolio"):
         st.dataframe(selected)
 
         st.write("Suggested investment per stock:",round(allocation,2))
+
 
 
 
