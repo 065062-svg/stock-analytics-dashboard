@@ -6,6 +6,102 @@ import plotly.express as px
 from prophet import Prophet
 
 
+# ---------- PAGE CONFIG ----------
+st.set_page_config(page_title="Stock Analytics Dashboard", layout="wide")
+
+
+# ---------- VISUAL THEME ----------
+st.markdown("""
+<style>
+
+/* Main background */
+.stApp {
+    background: linear-gradient(135deg,#0f2027,#203a43,#2c5364);
+}
+
+/* Title */
+h1 {
+    text-align:center;
+    color:#00ffd5;
+    font-size:42px;
+}
+
+/* Section headings */
+h2, h3 {
+    color:#00ffd5 !important;
+}
+
+/* Sidebar */
+section[data-testid="stSidebar"] {
+    background-color:#111;
+}
+
+section[data-testid="stSidebar"] * {
+    color:#00ff88 !important;
+}
+
+/* Metric cards */
+[data-testid="metric-container"] {
+    background-color:#132b38;
+    border:1px solid #00ffd5;
+    padding:15px;
+    border-radius:12px;
+}
+
+/* Metric labels */
+[data-testid="stMetricLabel"] {
+    color:#00ffd5 !important;
+}
+
+/* Metric values */
+[data-testid="stMetricValue"] {
+    color:white !important;
+}
+
+/* Dropdowns */
+[data-baseweb="select"] > div {
+    background-color:#132b38 !important;
+}
+
+[data-baseweb="select"] span {
+    color:#00ff88 !important;
+}
+
+/* Dropdown menu */
+div[role="listbox"] {
+    background-color:#132b38 !important;
+}
+
+div[role="option"] span {
+    color:#00ff88 !important;
+}
+
+/* Buttons */
+button {
+    background-color:#00ffd5 !important;
+    color:black !important;
+    font-weight:bold !important;
+}
+
+/* Tables */
+[data-testid="stDataFrame"] {
+    background-color:#132b38;
+}
+
+/* Inputs */
+input {
+    background-color:#132b38 !important;
+    color:white !important;
+}
+
+</style>
+""", unsafe_allow_html=True)
+
+
+# ---------- DASHBOARD TITLE ----------
+st.markdown("<h1>📈 Stock Analytics & Forecast Platform</h1>", unsafe_allow_html=True)
+
+
 @st.cache_data
 def load_stock_data(ticker):
 
@@ -125,7 +221,14 @@ col3.metric("52 Week Low", round(data["Low"].min(),2))
 
 st.subheader(f"📈 {selected_stock} Price Trend")
 
-fig = px.line(data, x=data.index, y="Close", template="plotly_dark")
+fig = px.line(
+    data,
+    x=data.index,
+    y="Close",
+    template="plotly_dark",
+    color_discrete_sequence=["#00ffd5"]
+)
+
 st.plotly_chart(fig, use_container_width=True)
 
 
@@ -136,7 +239,13 @@ st.subheader("📊 Moving Averages")
 data["MA50"] = data["Close"].rolling(50).mean()
 data["MA200"] = data["Close"].rolling(200).mean()
 
-fig_ma = px.line(data, x=data.index, y=["Close","MA50","MA200"], template="plotly_dark")
+fig_ma = px.line(
+    data,
+    x=data.index,
+    y=["Close","MA50","MA200"],
+    template="plotly_dark"
+)
+
 st.plotly_chart(fig_ma, use_container_width=True)
 
 
@@ -155,6 +264,7 @@ rs = avg_gain/avg_loss
 data["RSI"] = 100-(100/(1+rs))
 
 fig_rsi = px.line(data, x=data.index, y="RSI", template="plotly_dark")
+
 st.plotly_chart(fig_rsi, use_container_width=True)
 
 
@@ -168,14 +278,11 @@ forecast_years = st.slider("Forecast Years",1,5,2)
 df_forecast = data.reset_index()[["Date","Close"]]
 df_forecast["t"] = range(len(df_forecast))
 
-# simple linear trend model
 coef = pd.Series(df_forecast["Close"]).corr(pd.Series(df_forecast["t"]))
 
 slope = (df_forecast["Close"].iloc[-1] - df_forecast["Close"].iloc[0]) / len(df_forecast)
 
 future_days = 365 * forecast_years
-
-future_index = range(len(df_forecast), len(df_forecast) + future_days)
 
 future_prices = [
     df_forecast["Close"].iloc[-1] + slope * i
@@ -196,151 +303,12 @@ fig_forecast = px.line(
     forecast_df,
     x="Date",
     y="Forecast Price",
-    title="Projected Stock Price Trend"
+    template="plotly_dark",
+    color_discrete_sequence=["#00ffd5"]
 )
 
 st.plotly_chart(fig_forecast, use_container_width=True)
 
-
-# ---------- MULTI STOCK COMPARISON ----------
-
-st.markdown("---")
-st.subheader("📊 Multi-Stock Performance Comparison")
-
-if compare_stocks:
-
-    compare_df = pd.DataFrame()
-
-    for stock in compare_stocks:
-
-        ticker = stocks[stock]
-        df = load_stock_data(ticker)
-
-        if df is None:
-            continue
-
-        normalized = df["Close"] / df["Close"].iloc[0] * 100
-        compare_df[stock] = normalized
-
-    if not compare_df.empty:
-
-        fig_compare = px.line(compare_df, template="plotly_dark")
-        st.plotly_chart(fig_compare,use_container_width=True)
-
-
-# ---------- FUNDAMENTAL COMPARISON ----------
-
-st.markdown("---")
-st.subheader("📊 Stock Fundamentals Comparison")
-
-compare_table = st.multiselect(
-    "Select stocks for fundamentals comparison",
-    list(stocks.keys()),
-    key="fund_compare"
-)
-
-if compare_table:
-
-    fundamentals = []
-
-    for stock in compare_table:
-
-        time.sleep(0.5)
-
-        ticker = stocks[stock]
-        info = get_fundamentals(ticker)
-
-        if info is None:
-            continue
-
-        fundamentals.append({
-            "Stock": stock,
-            **info
-        })
-
-    df_fund = pd.DataFrame(fundamentals)
-
-    if df_fund.empty:
-        st.warning("Fundamental data could not be fetched. Try selecting different stocks.")
-
-    else:
-
-        st.dataframe(df_fund)
-
-        df_score = df_fund.copy()
-
-        df_score["PE Ratio"] = df_score["PE Ratio"].replace("N/A",100)
-        df_score["Dividend Yield"] = df_score["Dividend Yield"].replace("N/A",0)
-        df_score["Beta"] = df_score["Beta"].replace("N/A",1)
-
-        df_score["pe_score"] = 1 / df_score["PE Ratio"]
-        df_score["div_score"] = df_score["Dividend Yield"]
-        df_score["risk_score"] = 1 / df_score["Beta"]
-
-        df_score["total_score"] = (
-            0.4 * df_score["pe_score"] +
-            0.3 * df_score["div_score"] +
-            0.3 * df_score["risk_score"]
-        )
-
-        best_stock = df_score.sort_values("total_score",ascending=False).iloc[0]["Stock"]
-
-        st.success(f"⭐ Suggested Stock Among Selected: **{best_stock}**")
-
-
-# ---------- PORTFOLIO BUILDER ----------
-
-st.markdown("---")
-st.subheader("🤖 Smart Portfolio Builder")
-
-investment_amount = st.number_input("Total Investment Amount (₹)",1000,10000000,100000)
-
-risk_level = st.selectbox("Risk Appetite",["Low Risk","Moderate Risk","High Risk"])
-
-years = st.slider("Investment Horizon (Years)",1,10,5)
-
-if st.button("Generate Portfolio"):
-
-    portfolio=[]
-
-    for stock in bse100:
-
-        df = load_stock_data(stock)
-
-        if df is None:
-            continue
-
-        vol=df["Close"].pct_change().std()
-
-        portfolio.append({
-            "Stock":stock,
-            "Volatility":vol
-        })
-
-    df_port=pd.DataFrame(portfolio)
-
-    if risk_level=="Low Risk":
-        df_port=df_port[df_port["Volatility"]<0.02]
-
-    elif risk_level=="Moderate Risk":
-        df_port=df_port[df_port["Volatility"]<0.035]
-
-    df_port=df_port.sort_values("Volatility")
-
-    selected=df_port.head(5)
-
-    if selected.empty:
-        st.warning("No stocks match the selected risk level.")
-
-    else:
-
-        allocation=investment_amount/len(selected)
-
-        selected["Investment Allocation"]=allocation
-
-        st.dataframe(selected)
-
-        st.write("Suggested investment per stock:",round(allocation,2))
 
 
 
