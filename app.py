@@ -449,7 +449,8 @@ fig_rsi.add_hrect(y0=0,  y1=30,  fillcolor="rgba(0,200,81,0.07)",  line_width=0)
 fig_rsi.add_hline(y=70, line_dash="dot", line_color="#ef4444", line_width=1, annotation_text="Overbought", annotation_position="right")
 fig_rsi.add_hline(y=30, line_dash="dot", line_color="#00c851", line_width=1, annotation_text="Oversold",   annotation_position="right")
 fig_rsi.add_trace(go.Scatter(x=data.index, y=data["RSI"], name='RSI', line=dict(color=PURPLE, width=1.5)))
-fig_rsi.update_layout(**CHART_THEME, height=250, yaxis=dict(range=[0, 100], **CHART_THEME["yaxis"]))
+rsi_yaxis = {**CHART_THEME["yaxis"], "range": [0, 100]}
+fig_rsi.update_layout(**{k: v for k, v in CHART_THEME.items() if k != "yaxis"}, height=250, yaxis=rsi_yaxis)
 st.plotly_chart(fig_rsi, use_container_width=True)
 
 # ─── FORECAST ────────────────────────────────────────────────────────────────────
